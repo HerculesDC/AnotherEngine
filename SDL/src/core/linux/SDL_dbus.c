@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -111,19 +111,8 @@ LoadDBUSLibrary(void)
 void
 SDL_DBus_Init(void)
 {
-    static SDL_bool is_dbus_available = SDL_TRUE;
-    if (!is_dbus_available) {
-        return;  /* don't keep trying if this fails. */
-    }
-
-    if (!dbus.session_conn) {
+    if (!dbus.session_conn && LoadDBUSLibrary() != -1) {
         DBusError err;
-
-        if (LoadDBUSLibrary() == -1) {
-            is_dbus_available = SDL_FALSE;  /* can't load at all? Don't keep trying. */
-            return;  /* oh well */
-        }
-
         dbus.error_init(&err);
         dbus.session_conn = dbus.bus_get_private(DBUS_BUS_SESSION, &err);
         if (!dbus.error_is_set(&err)) {
@@ -132,7 +121,6 @@ SDL_DBus_Init(void)
         if (dbus.error_is_set(&err)) {
             dbus.error_free(&err);
             SDL_DBus_Quit();
-            is_dbus_available = SDL_FALSE;
             return;  /* oh well */
         }
         dbus.connection_set_exit_on_disconnect(dbus.system_conn, 0);
@@ -166,11 +154,15 @@ SDL_DBus_Quit(void)
 SDL_DBusContext *
 SDL_DBus_GetContext(void)
 {
-    if (!dbus_handle || !dbus.session_conn) {
+    if(!dbus_handle || !dbus.session_conn){
         SDL_DBus_Init();
     }
     
-    return (dbus_handle && dbus.session_conn) ? &dbus : NULL;
+    if(dbus_handle && dbus.session_conn){
+        return &dbus;
+    } else {
+        return NULL;
+    }
 }
 
 static SDL_bool
